@@ -1,0 +1,6 @@
+{
+  "name": "VOC用户声音洞察平台",
+  "description": "VOC用户声音洞察平台 - 支持品牌与服务舆情管理及舆情专题AI智能自动生成",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
