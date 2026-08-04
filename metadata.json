@@ -1,6 +1,6 @@
 {
-  "name": "VOC用户声音洞察平台",
-  "description": "VOC用户声音洞察平台 - 支持品牌与服务舆情管理及舆情专题AI智能自动生成",
+  "name": "用户声音洞察平台",
+  "description": "面向家电及消费电子行业的营销卖点与消费者认知洞察平台，包含全维度数据筛选、指标面板、品牌/系列分布矩阵及宣传与认知差异词云对比分析。",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
