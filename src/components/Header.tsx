@@ -15,20 +15,11 @@ export const Header: React.FC<HeaderProps> = ({ userName = "张素航" }) => {
         </div>
         <div id="voc-app-title" className="flex items-center space-x-2">
           <span className="font-semibold text-gray-800 text-base tracking-tight">VOC用户声音洞察平台</span>
-          <span className="text-[11px] px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200 font-medium hidden sm:inline-block">
-            企业级旗舰版 v3.2
-          </span>
         </div>
       </div>
 
       {/* Right User Actions & Status */}
       <div id="voc-user-actions" className="flex items-center space-x-3 text-gray-600 text-xs">
-        {/* Real-time Monitor Status Badge */}
-        <div id="voc-live-status" className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>全网抓取运行中</span>
-        </div>
-
         {/* Language selector */}
         <button id="voc-lang-btn" className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600 font-medium">
           中

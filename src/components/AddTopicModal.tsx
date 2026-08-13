@@ -1,7 +1,16 @@
 import React, { useState } from "react";
-import { X, Sparkles, Edit3, CheckCircle2, AlertCircle, Loader2, Info, Building2, Headphones, ShoppingCart, MessageSquare, Globe, Search, Link as LinkIcon, CheckSquare, Square } from "lucide-react";
+import { X, Sparkles, Edit3, CheckCircle2, AlertCircle, Loader2, Info, Building2, Headphones, ShoppingCart, MessageSquare, Globe, Search, Link as LinkIcon, CheckSquare, Square, Users, UserPlus, Plus, Check } from "lucide-react";
 import { SentimentTopic, RiskLevel, GenerationType, PublicOpinionItem } from "../types";
 import { initialBrandOpinions } from "../data/mockData";
+
+const PRESET_MEMBERS = [
+  { id: "m1", name: "张素航", role: "公关总监", dept: "品牌公关部" },
+  { id: "m2", name: "李美琳", role: "客服负责人", dept: "客户服务中心" },
+  { id: "m3", name: "王建国", role: "法务经理", dept: "集团法务部" },
+  { id: "m4", name: "陈思远", role: "运营总监", dept: "电商事业部" },
+  { id: "m5", name: "刘强", role: "品牌经理", dept: "市场公关部" },
+  { id: "m6", name: "吴海", role: "售后组长", dept: "售后服务部" },
+];
 
 interface AddTopicModalProps {
   isOpen: boolean;
@@ -16,19 +25,10 @@ export const AddTopicModal: React.FC<AddTopicModalProps> = ({
   onAddTopic,
   availableOpinions = initialBrandOpinions,
 }) => {
-  const [activeTab, setActiveTab] = useState<GenerationType>("ai");
-
-  // AI Tab State
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [targetBrand, setTargetBrand] = useState("");
-  const [industry, setIndustry] = useState("消费电子与智能硬件");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [aiError, setAiError] = useState("");
-  const [aiPreviewTopic, setAiPreviewTopic] = useState<Partial<SentimentTopic> | null>(null);
-
   // Manual Form State
   const [manualTitle, setManualTitle] = useState("");
-  const [manualRisk, setManualRisk] = useState<RiskLevel>("P1 - 高危");
+  const [manualRisk, setManualRisk] = useState<RiskLevel>("S级");
+  const [urgeTime, setUrgeTime] = useState<string>("2");
   const [manualKeywords, setManualKeywords] = useState("");
   const [manualExcludeKeywords, setManualExcludeKeywords] = useState("");
   const [manualChannels, setManualChannels] = useState<string[]>([
@@ -39,8 +39,20 @@ export const AddTopicModal: React.FC<AddTopicModalProps> = ({
     "知乎",
   ]);
   const [manualScope, setManualScope] = useState("集团品牌公关部 / 客户服务中心");
-  const [manualThreshold, setManualThreshold] = useState("小时负面声量 > 100条");
+  const [manualThreshold, setManualThreshold] = useState("小时关联异动声量 > 100条");
   const [manualSummary, setManualSummary] = useState("");
+
+  // One-click group creation and members state
+  const [autoCreateGroup, setAutoCreateGroup] = useState<boolean>(true);
+  const [groupPlatform, setGroupPlatform] = useState<string>("企微协同群");
+  const [groupName, setGroupName] = useState<string>("");
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([
+    "张素航 (公关总监)",
+    "李美琳 (客服负责人)",
+    "王建国 (法务经理)",
+    "陈思远 (运营总监)",
+  ]);
+  const [newMemberInput, setNewMemberInput] = useState<string>("");
 
   // Category & Linked Opinions State for Manual Mode
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
@@ -76,76 +88,19 @@ export const AddTopicModal: React.FC<AddTopicModalProps> = ({
     );
   };
 
-  // Call Gemini API via Express backend `/api/ai/generate-topic`
-  const handleAIGenerate = async () => {
-    if (!aiPrompt.trim()) {
-      setAiError("请填写舆情事件背景、用户评价或监控需求说明");
-      return;
-    }
-
-    setAiError("");
-    setIsGenerating(true);
-    setAiPreviewTopic(null);
-
-    try {
-      const response = await fetch("/api/ai/generate-topic", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description: aiPrompt,
-          targetBrand: targetBrand || "品牌主线产品",
-          industry: industry,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success && data.topic) {
-        setAiPreviewTopic(data.topic);
-      } else {
-        throw new Error(data.error || "生成失败，请重试");
-      }
-    } catch (err: any) {
-      console.error(err);
-      setAiError(err.message || "连接服务器失败，已应用备用规则提取");
-    } finally {
-      setIsGenerating(false);
-    }
+  const handleToggleMember = (memberLabel: string) => {
+    setSelectedMembers((prev) =>
+      prev.includes(memberLabel)
+        ? prev.filter((m) => m !== memberLabel)
+        : [...prev, memberLabel]
+    );
   };
 
-  // Submit AI-generated topic
-  const handleSubmitAITopic = () => {
-    if (!aiPreviewTopic) return;
-
-    const newTopic: SentimentTopic = {
-      id: `topic-${Date.now()}`,
-      code: `ZT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(
-        10 + Math.random() * 90
-      )}`,
-      title: aiPreviewTopic.title || "AI 舆情专题",
-      summary: aiPreviewTopic.summary || "AI智能生成的舆情专题方案",
-      generationType: "ai",
-      riskLevel: (aiPreviewTopic.riskLevel as RiskLevel) || "P1 - 高危",
-      status: "监测中",
-      keywords: aiPreviewTopic.keywords || ["发热", "退货", "服务差"],
-      excludeKeywords: aiPreviewTopic.excludeKeywords || ["正常", "好评"],
-      mediaChannels: aiPreviewTopic.mediaChannels || ["微博", "小红书", "黑猫投诉"],
-      monitorScope: aiPreviewTopic.monitorScope || "品牌运营组",
-      riskAlertThreshold: aiPreviewTopic.riskAlertThreshold || "小时负面声量 > 100条",
-      creator: "AI 智能引擎",
-      createdAt: new Date().toLocaleString("zh-CN", { hour12: false }),
-      updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
-      totalMentions: Math.floor(2000 + Math.random() * 10000),
-      negativeRatio: Math.floor(25 + Math.random() * 30),
-      sentimentScore: Math.floor(40 + Math.random() * 35),
-      dimensions: aiPreviewTopic.dimensions,
-      initialSentimentBreakdown: aiPreviewTopic.initialSentimentBreakdown,
-      predictedTrend: aiPreviewTopic.predictedTrend,
-      actionSuggestions: aiPreviewTopic.actionSuggestions,
-    };
-
-    onAddTopic(newTopic);
-    onClose();
+  const handleAddCustomMember = () => {
+    if (newMemberInput.trim() && !selectedMembers.includes(newMemberInput.trim())) {
+      setSelectedMembers((prev) => [...prev, newMemberInput.trim()]);
+      setNewMemberInput("");
+    }
   };
 
   // Submit Manual topic
@@ -173,8 +128,10 @@ export const AddTopicModal: React.FC<AddTopicModalProps> = ({
       title: manualTitle,
       summary: manualSummary || "手动配置的舆情专题监测方案",
       generationType: "manual",
+      auditStatus: "已通过",
       riskLevel: manualRisk,
-      status: "监测中",
+      urgeTime: urgeTime ? (urgeTime.toLowerCase().endsWith("h") ? urgeTime : `${urgeTime}h`) : "2h",
+      status: "处理中",
       keywords: kwList.length > 0 ? kwList : ["品质瑕疵", "客服超时"],
       excludeKeywords: exList,
       mediaChannels: manualChannels.length > 0 ? manualChannels : ["微博", "黑猫投诉"],
@@ -184,7 +141,6 @@ export const AddTopicModal: React.FC<AddTopicModalProps> = ({
       createdAt: new Date().toLocaleString("zh-CN", { hour12: false }),
       updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
       totalMentions: linkedItems.length > 0 ? linkedItems.length * 1200 + Math.floor(Math.random() * 2000) : Math.floor(1000 + Math.random() * 5000),
-      negativeRatio: Math.floor(25 + Math.random() * 25),
       sentimentScore: Math.floor(55 + Math.random() * 30),
       dataCategories: selectedCategories.length > 0 ? selectedCategories : ["品牌舆情", "服务舆情", "电商舆情"],
       linkedOpinionIds: selectedOpinionIds,
@@ -217,7 +173,7 @@ export const AddTopicModal: React.FC<AddTopicModalProps> = ({
               新增舆情专题
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              可选择通过 Gemini AI 智能提取一键构建或手动精准配置表单
+              通过手动表单精准配置与勾选品牌/服务/电商等舆情数据源创建专属专题
             </p>
           </div>
           <button
@@ -228,183 +184,10 @@ export const AddTopicModal: React.FC<AddTopicModalProps> = ({
           </button>
         </div>
 
-        {/* Creation Mode Tabs */}
-        <div className="px-6 pt-3 bg-white border-b border-gray-200 flex items-center space-x-4">
-          <button
-            onClick={() => setActiveTab("ai")}
-            className={`pb-2.5 text-xs font-semibold flex items-center space-x-1.5 border-b-2 transition-colors ${
-              activeTab === "ai"
-                ? "border-teal-600 text-teal-700"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            <span>AI 智能自动生成专题</span>
-            <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[10px] rounded font-normal">
-              推荐
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("manual")}
-            className={`pb-2.5 text-xs font-semibold flex items-center space-x-1.5 border-b-2 transition-colors ${
-              activeTab === "manual"
-                ? "border-teal-600 text-teal-700"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <Edit3 className="w-4 h-4" />
-            <span>手动表单配置创建</span>
-          </button>
-        </div>
-
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-          {activeTab === "ai" ? (
-            <div className="space-y-4">
-              <div className="bg-teal-50/60 border border-teal-200/80 rounded-lg p-3.5 text-xs text-teal-900 flex items-start space-x-2.5">
-                <Info className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-teal-950">AI 智能提取机制说明：</p>
-                  <p className="text-teal-800 mt-0.5">
-                    粘贴用户投诉段落、热搜新闻事件或描述核心隐患，AI将自动萃取风险等级、核心关键词、监控范围、分析维度及应急处置建议。
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  舆情事件背景 / 客户反馈文本 / 监控需求 <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="例如：近期有消费者在小红书和黑猫投诉集中反映我们的旗舰机型发热严重，并在玩游戏或长时间拍摄时出现降频死机，客服沟通时态度敷衍拒绝退货..."
-                  rows={4}
-                  className="w-full text-xs p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    目标品牌 / 业务线
-                  </label>
-                  <input
-                    type="text"
-                    value={targetBrand}
-                    onChange={(e) => setTargetBrand(e.target.value)}
-                    placeholder="如：智能终端 / 725旗舰"
-                    className="w-full text-xs p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    行业领域
-                  </label>
-                  <select
-                    value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    className="w-full text-xs p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none bg-white"
-                  >
-                    <option value="消费电子与智能硬件">消费电子与智能硬件</option>
-                    <option value="电商零售与快消品">电商零售与快消品</option>
-                    <option value="互联网与SaaS软件">互联网与SaaS软件</option>
-                    <option value="新能源汽车与出行">新能源汽车与出行</option>
-                    <option value="金融保险与服务业">金融保险与服务业</option>
-                  </select>
-                </div>
-              </div>
-
-              {aiError && (
-                <div className="p-2.5 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{aiError}</span>
-                </div>
-              )}
-
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={handleAIGenerate}
-                  disabled={isGenerating}
-                  className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium text-xs rounded-lg transition-colors flex items-center justify-center space-x-2 shadow-sm disabled:opacity-60"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Gemini AI 正在深度剖析事件与生成专题...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 text-amber-300" />
-                      <span>AI 一键生成舆情专题架构</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* AI Generated Preview Card */}
-              {aiPreviewTopic && (
-                <div className="mt-4 border border-teal-200 bg-teal-50/30 rounded-xl p-4 text-xs space-y-3 animate-in fade-in duration-300">
-                  <div className="flex items-center justify-between border-b border-teal-100 pb-2">
-                    <span className="font-bold text-gray-900 text-sm flex items-center">
-                      <CheckCircle2 className="w-4 h-4 text-teal-600 mr-1.5" />
-                      {aiPreviewTopic.title}
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold text-[11px]">
-                      {aiPreviewTopic.riskLevel}
-                    </span>
-                  </div>
-
-                  <p className="text-gray-600 leading-relaxed">{aiPreviewTopic.summary}</p>
-
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <div>
-                      <span className="font-semibold text-gray-700">监控关键词：</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {aiPreviewTopic.keywords?.map((kw, i) => (
-                          <span key={i} className="px-2 py-0.5 bg-white border border-gray-200 text-gray-700 rounded text-[11px]">
-                            {kw}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="font-semibold text-gray-700">重点监控渠道：</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {aiPreviewTopic.mediaChannels?.map((ch, i) => (
-                          <span key={i} className="px-2 py-0.5 bg-teal-100 text-teal-800 rounded text-[11px] font-medium">
-                            {ch}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {aiPreviewTopic.predictedTrend && (
-                    <div className="bg-white/80 p-2.5 rounded-lg border border-teal-100 text-gray-700">
-                      <span className="font-semibold text-teal-800">🔮 AI 走势预判：</span>
-                      <p className="mt-0.5 text-gray-600">{aiPreviewTopic.predictedTrend}</p>
-                    </div>
-                  )}
-
-                  <div className="pt-2 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={handleSubmitAITopic}
-                      className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium text-xs rounded-lg transition-all shadow-sm"
-                    >
-                      确认启用此 AI 生成专题
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Manual Creation Form */
-            <form onSubmit={handleSubmitManualTopic} className="space-y-5">
+          {/* Manual Creation Form */}
+          <form onSubmit={handleSubmitManualTopic} className="space-y-5">
               <div>
                 <label className="block text-xs font-semibold text-gray-800 mb-1">
                   专题名称 <span className="text-red-500">*</span>
@@ -417,55 +200,6 @@ export const AddTopicModal: React.FC<AddTopicModalProps> = ({
                   placeholder="例如：618全网大促品牌服务与电商口碑综合监测专题"
                   className="w-full text-xs p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
                 />
-              </div>
-
-              {/* Data Categories Selector (品牌/服务/电商/评论区/海外) */}
-              <div className="bg-teal-50/40 p-3.5 rounded-xl border border-teal-200/70 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-gray-800 flex items-center">
-                    <Building2 className="w-4 h-4 text-teal-600 mr-1.5" />
-                    关联舆情数据分类 <span className="text-xs text-teal-700 font-normal ml-1">(支持多选 品牌/服务/电商 等数据源)</span>
-                  </label>
-                  <span className="text-[11px] text-teal-800 font-medium">
-                    已选 {selectedCategories.length} 类数据
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
-                  {[
-                    { label: "品牌舆情", icon: Building2, desc: "公关PR/品牌口碑" },
-                    { label: "服务舆情", icon: Headphones, desc: "客服/售后维修" },
-                    { label: "电商舆情", icon: ShoppingCart, desc: "保价/快递破损" },
-                    { label: "评论区舆情", icon: MessageSquare, desc: "爆款贴/评论词云" },
-                    { label: "海外舆情", icon: Globe, desc: "跨境/海外社媒" },
-                  ].map((cat) => {
-                    const selected = selectedCategories.includes(cat.label);
-                    const Icon = cat.icon;
-                    return (
-                      <button
-                        key={cat.label}
-                        type="button"
-                        onClick={() => handleToggleCategory(cat.label)}
-                        className={`p-2.5 rounded-lg border text-left transition-all flex items-start space-x-2 ${
-                          selected
-                            ? "bg-teal-600 text-white border-teal-600 shadow-2xs"
-                            : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
-                        }`}
-                      >
-                        <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${selected ? "text-amber-300" : "text-teal-600"}`} />
-                        <div className="min-w-0">
-                          <div className="font-semibold text-xs leading-tight flex items-center justify-between">
-                            <span>{cat.label}</span>
-                            {selected && <CheckCircle2 className="w-3.5 h-3.5 text-white ml-1 shrink-0" />}
-                          </div>
-                          <p className={`text-[10px] mt-0.5 truncate ${selected ? "text-teal-100" : "text-gray-400"}`}>
-                            {cat.desc}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
               </div>
 
               {/* Specific Opinion Items Chooser */}
@@ -578,101 +312,163 @@ export const AddTopicModal: React.FC<AddTopicModalProps> = ({
                 </div>
               </div>
 
+              {/* 舆情专题等级与催办时间 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    风险等级预设
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    舆情专题等级 <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={manualRisk}
                     onChange={(e) => setManualRisk(e.target.value as RiskLevel)}
-                    className="w-full text-xs p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none bg-white"
+                    className="w-full text-xs p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none bg-white font-medium text-gray-800"
                   >
-                    <option value="P0 - 紧急">P0 - 紧急 (集团级最高预警)</option>
-                    <option value="P1 - 高危">P1 - 高危 (业务线重大隐患)</option>
-                    <option value="P2 - 中危">P2 - 中危 (日常常态监控)</option>
-                    <option value="P3 - 低危">P3 - 低危 (低风险观望)</option>
+                    <option value="S级">S级 - 紧急重大 (最高响应/即时介入)</option>
+                    <option value="A级">A级 - 高危风险 (重点关注/快速处置)</option>
+                    <option value="B级">B级 - 中危关注 (日常异动/定期跟踪)</option>
+                    <option value="C级">C级 - 一般监控 (常规声量/持续观察)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    预警触发规则
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    催办/响应时限
                   </label>
-                  <input
-                    type="text"
-                    value={manualThreshold}
-                    onChange={(e) => setManualThreshold(e.target.value)}
-                    placeholder="如：小时负面 > 100条 或 单帖阅读 > 5万"
-                    className="w-full text-xs p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    包含关键词 (逗号分隔)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={manualKeywords}
-                    onChange={(e) => setManualKeywords(e.target.value)}
-                    placeholder="例如：断连, 异常关机, 电池跑电, 售后拖延, 拒绝退差价"
-                    className="w-full text-xs p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    排除干扰词 (逗号分隔)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={manualExcludeKeywords}
-                    onChange={(e) => setManualExcludeKeywords(e.target.value)}
-                    placeholder="例如：抽奖活动, 官方正常通稿"
-                    className="w-full text-xs p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  监测媒体渠道
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {channelOptions.map((ch) => {
-                    const checked = manualChannels.includes(ch);
-                    return (
-                      <button
-                        key={ch}
-                        type="button"
-                        onClick={() => handleToggleChannel(ch)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                          checked
-                            ? "bg-teal-50 text-teal-700 border-teal-300"
-                            : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                        }`}
-                      >
-                        {ch}
-                      </button>
-                    );
-                  })}
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={urgeTime}
+                      onChange={(e) => setUrgeTime(e.target.value)}
+                      placeholder="如：0.5, 1, 2, 24"
+                      className="w-full text-xs p-2.5 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none bg-white font-medium text-gray-800"
+                    />
+                    <span className="absolute right-3 text-xs font-bold text-gray-500 pointer-events-none select-none">
+                      h
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  责任部门 / 业务范围
+                  包含关键词/描述
                 </label>
-                <input
-                  type="text"
-                  value={manualScope}
-                  onChange={(e) => setManualScope(e.target.value)}
-                  placeholder="如：集团品牌公关部 / 客户服务中心 / 电商运营部"
-                  className="w-full text-xs p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
+                <textarea
+                  rows={2}
+                  value={manualKeywords}
+                  onChange={(e) => setManualKeywords(e.target.value)}
+                  placeholder="例如：断连, 异常关机, 电池跑电, 售后拖延, 拒绝退差价"
+                  className="w-full text-xs p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
                 />
+              </div>
+
+              {/* 一键拉群与群成员配置 */}
+              <div className="bg-teal-50/50 p-3.5 rounded-xl border border-teal-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-7 h-7 rounded-lg bg-teal-600 text-white flex items-center justify-center font-bold shrink-0">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-800 flex items-center">
+                        一键拉应急处置群 / 告警协同群
+                        <span className="ml-2 text-[10px] px-1.5 py-0.2 rounded bg-teal-100 text-teal-800 font-medium">
+                          即时协同
+                        </span>
+                      </label>
+                      <p className="text-[10px] text-gray-500">专题保存后自动创建沟通群，并实时推送异常与舆情条目</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setAutoCreateGroup(!autoCreateGroup)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      autoCreateGroup ? "bg-teal-600" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        autoCreateGroup ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {autoCreateGroup && (
+                  <div className="space-y-3 pt-1 border-t border-teal-100/80">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                        拟建协同群名称
+                      </label>
+                      <input
+                        type="text"
+                        value={groupName || (manualTitle ? `[舆情处置群] ${manualTitle}` : "[应急响应] 专题舆情协同处置群")}
+                        onChange={(e) => setGroupName(e.target.value)}
+                        placeholder="例如：[应急响应] 618售后舆情专项处置群"
+                        className="w-full text-xs p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none bg-white"
+                      />
+                    </div>
+
+                    {/* 选择群成员 */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-[11px] font-semibold text-gray-700 flex items-center">
+                          <UserPlus className="w-3.5 h-3.5 text-teal-600 mr-1" />
+                          选择拉入群成员
+                        </label>
+                        <span className="text-[10px] text-teal-700 font-medium">
+                          已选 {selectedMembers.length} 位成员
+                        </span>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={newMemberInput}
+                          onChange={(e) => setNewMemberInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddCustomMember();
+                            }
+                          }}
+                          placeholder="输入姓名/邮箱/手机号回车添加..."
+                          className="flex-1 text-xs p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddCustomMember}
+                          className="px-3 py-2 bg-teal-100 text-teal-800 hover:bg-teal-200 text-xs font-medium rounded-lg transition-colors flex items-center shrink-0"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1" />
+                          添加成员
+                        </button>
+                      </div>
+
+                      {selectedMembers.length > 0 && (
+                        <div className="mt-2 p-2 bg-white rounded-lg border border-teal-100 flex flex-wrap gap-1.5 items-center">
+                          <span className="text-[10px] text-gray-400 font-medium mr-1">已选择拉群名单:</span>
+                          {selectedMembers.map((m) => (
+                            <span
+                              key={m}
+                              className="px-2 py-0.5 bg-teal-50 text-teal-800 border border-teal-200 text-[11px] rounded flex items-center space-x-1"
+                            >
+                              <span>{m}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleMember(m)}
+                                className="text-teal-500 hover:text-teal-800 ml-1 font-bold"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -704,7 +500,6 @@ export const AddTopicModal: React.FC<AddTopicModalProps> = ({
                 </button>
               </div>
             </form>
-          )}
         </div>
       </div>
     </div>

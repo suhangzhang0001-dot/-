@@ -10,11 +10,10 @@ import { MenuKey, TabItem, SentimentTopic, PublicOpinionItem } from "./types";
 import { initialTopics, initialBrandOpinions } from "./data/mockData";
 
 export default function App() {
-  const [activeKey, setActiveKey] = useState<MenuKey>("brand_opinion");
+  const [activeKey, setActiveKey] = useState<MenuKey>("topic_opinion");
 
   const [tabs, setTabs] = useState<TabItem[]>([
-    { key: "overview", label: "总体概览", closable: false },
-    { key: "brand_opinion", label: "品牌舆情管理", closable: true },
+    { key: "topic_opinion", label: "舆情专题管理", closable: false },
   ]);
 
   const [topics, setTopics] = useState<SentimentTopic[]>(initialTopics);

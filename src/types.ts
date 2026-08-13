@@ -1,8 +1,10 @@
-export type RiskLevel = "P0 - 紧急" | "P1 - 高危" | "P2 - 中危" | "P3 - 低危";
+export type RiskLevel = "S级" | "A级" | "B级" | "C级";
 
 export type GenerationType = "manual" | "ai";
 
-export type TopicStatus = "监测中" | "已暂停" | "已归档";
+export type AuditStatus = "待审核" | "已通过" | "已拒绝";
+
+export type TopicStatus = "待审核" | "处理中" | "已闭环";
 
 export interface TopicDimension {
   name: string;
@@ -34,7 +36,9 @@ export interface SentimentTopic {
   title: string;
   summary: string;
   generationType: GenerationType; // 手动 或 AI 自动生成
-  riskLevel: RiskLevel;
+  auditStatus?: AuditStatus; // 对于AI自动生成的专题，需要审核状态
+  riskLevel: RiskLevel; // S级, A级, B级, C级
+  urgeTime?: string; // 催办/响应时限 (如: "2h")
   status: TopicStatus;
   keywords: string[];
   excludeKeywords: string[];
@@ -45,7 +49,6 @@ export interface SentimentTopic {
   createdAt: string;
   updatedAt: string;
   totalMentions: number; // 关联声量
-  negativeRatio: number; // 负面占比 (%)
   sentimentScore: number; // 舆情健康分 (0-100)
   dimensions?: TopicDimension[];
   initialSentimentBreakdown?: {
